@@ -1663,11 +1663,12 @@
                  (rx/reduce conj [])
                  (rx/catch #(rx/empty))))
            (rx/subs!
-            (fn [_]
-              (relayout-after-fonts! shapes font-pending-ids)
-              (request-render "images-loaded"))
             noop-fn
-            (fn [] (when (fn? on-complete) (on-complete)))))
+            noop-fn
+            (fn []
+              (relayout-after-fonts! shapes font-pending-ids)
+              (request-render "images-loaded")
+              (when (fn? on-complete) (on-complete)))))
       ;; No pending images — complete immediately.
       (when on-complete (on-complete)))))
 
@@ -1814,11 +1815,11 @@
                                            (if (fn? callback) (callback) (rx/empty))))
                                         (rx/reduce conj [])))
                                   (rx/subs!
-                                   (fn [_]
-                                     (relayout-after-fonts! shapes font-pending-acc)
-                                     (request-render "images-loaded"))
                                    noop-fn
-                                   noop-fn)))))))))]
+                                   noop-fn
+                                   (fn []
+                                     (relayout-after-fonts! shapes font-pending-acc)
+                                     (request-render "images-loaded")))))))))))]
          (process-next-chunk 0 [] [] []))))))
 
 
