@@ -10,6 +10,8 @@
    [app.common.data.macros :as dm]
    [app.common.exceptions :as ex]
    [app.common.files.helpers :as cfh]
+   [app.common.files.tokens :as cfo]
+   [app.common.files.validate :as val]
    [app.common.geom.point :as gpt]
    [app.common.geom.shapes :as gsh]
    [app.common.schema :as sm]
@@ -428,7 +430,19 @@
    [:set-base-font-size
     [:map {:title "ModBaseFontSize"}
      [:type [:= :set-base-font-size]]
-     [:base-font-size :string]]]])
+     [:base-font-size :string]]]
+
+   [:set-tokens-source
+    [:map {:title "SetTokensSource"}
+     [:type [:= :set-tokens-source]]
+     [:file-id ::sm/uuid]
+     [:library-id [:maybe ::sm/uuid]]]]
+
+   [:validate-shapes
+    [:map {:title "ValidateShapesChange"}
+     [:type [:= :validate-shapes]]
+     [:shape-ids [:vector ::sm/uuid]]
+     [:context :string]]]])
 
 (def schema:changes
   [:sequential {:gen/max 5 :gen/min 1} schema:change])
@@ -1070,6 +1084,35 @@
   [data {:keys [base-font-size]}]
   (ctf/set-base-font-size data base-font-size))
 
+
+;; === Validate Shapes
+
+(defn- find-shape-page
+  "Find the page that contains the shape with the given id."
+  [data shape-id]
+  (some (fn [[_ page]]
+          (when (contains? (:objects page) shape-id)
+            page))
+        (:pages-index data)))
+
+(defmethod process-change :validate-shapes
+  [data {:keys [shape-ids context]}]
+  (let [file {:data data :id uuid/zero}
+        errors (reduce (fn [acc shape-id]
+                         (if-let [page (find-shape-page data shape-id)]
+                           (let [page-errors (val/validate-shape shape-id file page {})]
+                             (if (seq page-errors)
+                               (into acc page-errors)
+                               acc))
+                           acc))
+                       []
+                       shape-ids)]
+    (when (seq errors)
+      (ex/raise :type :validation
+                :code :referential-integrity
+                :hint (str "error on validating shapes: " context)
+                :details errors))
+    data))
 
 ;; === Operations
 

@@ -1218,3 +1218,11 @@
     (-> changes
         (update :redo-changes conj redo-change)
         (update :undo-changes conj undo-change))))
+
+;; Validate Shapes
+
+(defn validate-shapes
+  [changes shape-ids context]
+  (update changes :redo-changes conj {:type :validate-shapes
+                                      :shape-ids shape-ids
+                                      :context context}))
